@@ -3,7 +3,7 @@
 
 param(
     [Parameter(Mandatory=$false)]
-    [string]$ScriptName = "reverse_shell_1001.ps1",
+    [string]$ScriptName = "YourScript.ps1",
     
     [Parameter(Mandatory=$false)]
     [string]$TaskName = "MyBootScript"
@@ -46,5 +46,6 @@ catch {
 }
 
 # Show the created task
-Write-Host "`nTask details:"
+Write-Host ""
+Write-Host "Task details:"
 Get-ScheduledTask -TaskName $TaskName | Select-Object TaskName, State, TaskPath
