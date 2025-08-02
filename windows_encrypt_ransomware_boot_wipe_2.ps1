@@ -3,10 +3,10 @@
 
 param(
     [Parameter(Mandatory=$false)]
-    [string]$ScriptName = encrypt.ps1",
+    [string]$ScriptName = "encrypt.ps1",
     
     [Parameter(Mandatory=$false)]
-    [string]$TaskName = "wipe_ransomware"
+    [string]$TaskName = "MyBootScript"
 )
 
 # Check if running as administrator
