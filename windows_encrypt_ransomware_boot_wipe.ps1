@@ -3,7 +3,7 @@
 
 param(
     [Parameter(Mandatory=$false)]
-    [string]$ScriptName = "ransomware.ps1",
+    [string]$ScriptName = encrypt.ps1",
     
     [Parameter(Mandatory=$false)]
     [string]$TaskName = "wipe_ransomware"
